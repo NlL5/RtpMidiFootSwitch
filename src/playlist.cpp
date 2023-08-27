@@ -1,36 +1,105 @@
 #include "LiquidCrystal.h"
-#include "FTPClient.h"
 #include "LittleFS.h"
+#include "ESP8266HTTPClient.h"
+#include "WiFiClientSecure.h"
 #define SPIFFS LittleFS
-#define PLAYLIST_PATH "playlist.csv"
+#define PLAYLIST_PATH "/playlist.csv"
 
 extern LiquidCrystal lcd;
+
+#define PLAYLIST_MAX 30
+#define PLAYLIST_STRING_LENGTH 17
+char playlist[30][PLAYLIST_STRING_LENGTH];
+u_int16_t song_id[30];
+
+const char *host = "https://192.168.178.1:15201/nas/filelink.lua?id=8be6da70eefd36df";
+const uint8_t fingerprint[] = {0x28, 0x31, 0x19, 0x9B, 0xD9, 0x77, 0xD1, 0x1D, 0x92, 0xF9, 0x11, 0xB7, 0x84, 0xA1, 0xD9, 0xFB, 0xC3, 0x6D, 0x38, 0xB1};
+const u_int16_t port = 15201;
 
 void download_playlist()
 {
     lcd.setCursor(0, 0);
     lcd.print("Wifi! Data?     ");
 
-    // Create file
-    File tmp = LittleFS.open(PLAYLIST_PATH, "a");
-    tmp.close();
+    // Read backup file
+    LittleFS.begin();
 
     // Get file from server
-    FTPClient ftpClient(LittleFS);
-    FTPClient::ServerInfo ftpServerInfo("MidiTrigger", "VADGV$wm%9K\%X8AK4o^7o", "192.168.178.1", 21);
-    ftpClient.begin(ftpServerInfo);
-    ftpClient.transfer(PLAYLIST_PATH, PLAYLIST_PATH, FTPClient::FTP_GET); // get a file blocking
-    ftpClient.stop();
+    std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+    client->setFingerprint(fingerprint);
 
-    // Read playlist file
-    lcd.setCursor(0, 0);
+    HTTPClient https;
+
+    Serial.print("[HTTPS] begin...\n");
+    if (https.begin(*client, host))
+    { // HTTPS
+
+        Serial.print("[HTTPS] GET...\n");
+        // start connection and send HTTP header
+        int httpCode = https.GET();
+
+        // httpCode will be negative on error
+        if (httpCode > 0)
+        {
+            // HTTP header has been send and Server response header has been handled
+            Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+
+            // file found at server
+            if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
+            {
+                String payload = https.getString();
+                File tmp = LittleFS.open(PLAYLIST_PATH, "r"); // open for reading just for file size
+                u_int16_t old_size = tmp.size();
+                tmp.close();
+
+                if (payload.length() != old_size)
+                {
+                    Serial.printf("[HTTPS] Different size to backup (old: %d, new: %d): save to backup file...\n", old_size, payload.length());
+                    File write = LittleFS.open(PLAYLIST_PATH, "w"); // now open for writing
+                    write.print(payload);
+                    delay(1);
+                    write.close();
+                }
+            }
+        }
+        else
+        {
+            Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+        }
+
+        https.end();
+    }
+    else
+    {
+        Serial.println("[HTTPS] Unable to connect");
+    }
+
+    Serial.println("[Playlist] Read backup file");
+    // Now read playlist into array
     File file = LittleFS.open(PLAYLIST_PATH, "r");
-    while(file.available()) {
-        u_int8_t current = file.read();
-        lcd.write(current);
+    for (int i = 0; file.available(); i++)
+    {
+        // Read the id
+        char id_buffer[4];
+        file.readBytesUntil(',', id_buffer, 4);
+        song_id[i] = (u_int16_t)atoi(id_buffer);
+
+        // read the song name
+        char name_buffer[40];
+        file.readBytesUntil('\n', name_buffer, 40);
+
+        // Copy to playlist array and end the string with null terminator
+        strncpy(playlist[i], name_buffer, PLAYLIST_STRING_LENGTH - 1);
+        playlist[i][PLAYLIST_STRING_LENGTH - 1] = '\0';
+
+        Serial.printf("[Playlist] Got %d, id %d, %s\n", i, song_id[i], playlist[i]);
     }
     file.close();
 
     lcd.setCursor(0, 0);
-    //lcd.print("Data! Base?     ");
+    lcd.print("Data! Base?     ");
+
+    lcd.setCursor(0, 1);
+    lcd.print("  ");
+    lcd.print(playlist[0]);
 }
