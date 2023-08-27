@@ -8,8 +8,6 @@ void setup_display()
 {
     // set up the LCD's number of columns and rows:
     lcd.begin(16, 2);
-    // Print a message to the LCD.
-    lcd.print("Warte auf Basis...");
 }
 
 void loop_display()
