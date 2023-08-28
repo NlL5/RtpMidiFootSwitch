@@ -7,14 +7,13 @@
 
 extern LiquidCrystal lcd;
 
-#define PLAYLIST_MAX 30
+#define PLAYLIST_MAX 60
 #define PLAYLIST_STRING_LENGTH 17
-char playlist[30][PLAYLIST_STRING_LENGTH];
-u_int16_t song_id[30];
+char playlist[PLAYLIST_MAX][PLAYLIST_STRING_LENGTH];
+u_int16_t song_id[PLAYLIST_MAX];
 
 const char *host = "https://192.168.178.1:15201/nas/filelink.lua?id=8be6da70eefd36df";
 const uint8_t fingerprint[] = {0x28, 0x31, 0x19, 0x9B, 0xD9, 0x77, 0xD1, 0x1D, 0x92, 0xF9, 0x11, 0xB7, 0x84, 0xA1, 0xD9, 0xFB, 0xC3, 0x6D, 0x38, 0xB1};
-const u_int16_t port = 15201;
 
 void download_playlist()
 {
@@ -59,6 +58,8 @@ void download_playlist()
                     write.print(payload);
                     delay(1);
                     write.close();
+                } else {
+                    Serial.println("[HTTPS] Nothing changed; keeping old backup file.");
                 }
             }
         }
@@ -77,7 +78,7 @@ void download_playlist()
     Serial.println("[Playlist] Read backup file");
     // Now read playlist into array
     File file = LittleFS.open(PLAYLIST_PATH, "r");
-    for (int i = 0; file.available(); i++)
+    for (int i = 0; file.available() && i < PLAYLIST_MAX; i++)
     {
         // Read the id
         char id_buffer[4];
@@ -97,9 +98,56 @@ void download_playlist()
     file.close();
 
     lcd.setCursor(0, 0);
-    lcd.print("Data! Base?     ");
+    lcd.print("Data! Rtp?     ");
 
     lcd.setCursor(0, 1);
     lcd.print("  ");
     lcd.print(playlist[0]);
+}
+
+void playlist_display_next_of(u_int16_t index)
+{
+    index++;
+
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
+
+    if (index >= PLAYLIST_MAX) {
+        Serial.printf("[Playlist] Warning: Secondary ignoring index %d\n", index);
+    }
+
+    lcd.setCursor(2, 1);
+    lcd.print(playlist[index]);
+}
+
+void playlist_goto_index(u_int16_t index)
+{
+    Serial.printf("[Playlist] Go to index %d\n", index);
+
+    lcd.setCursor(0, 0);
+    lcd.print("                ");
+
+    if (index >= PLAYLIST_MAX) {
+        Serial.printf("[Playlist] Warning: Primary ignoring index %d\n", index);
+        return;
+    }
+
+    lcd.setCursor(0, 0);
+    lcd.print(playlist[index]);
+
+    playlist_display_next_of(index);
+}
+
+void playlist_goto_id(u_int16_t id)
+{
+    Serial.printf("[Playlist] Go to id %d\n", id);
+
+    // Search song by ID
+    for (u_int16_t i = 0; i < PLAYLIST_MAX; i++) {
+        if (song_id[i] == id) {
+            playlist_goto_index(i);
+            return;
+        }
+    }
+
 }

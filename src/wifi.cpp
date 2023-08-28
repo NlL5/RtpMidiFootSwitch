@@ -35,3 +35,12 @@ void setup_wifi()
 
     lcd.clear();
 }
+
+void loop_wifi()
+{
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print("NO WIFI!! Reboot");
+    }
+}

@@ -1,6 +1,7 @@
 #include "Wire.h"
 #include "LiquidCrystal.h"
 
+// Info: https://diyi0t.com/lcd-display-tutorial-for-arduino-and-esp8266/
 // Init LCD lib:  RS, EN, d4, d5, d6, d7
 LiquidCrystal lcd(D6, D7, D4, D3, D2, D1);
 
