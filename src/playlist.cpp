@@ -66,6 +66,11 @@ void download_playlist()
         else
         {
             Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+            lcd.setCursor(0, 0);
+            lcd.print("HTTP err: ");
+            lcd.print(httpCode);
+            lcd.print("     ");
+            delay(3000); // 3 seonds
         }
 
         https.end();
@@ -73,6 +78,9 @@ void download_playlist()
     else
     {
         Serial.println("[HTTPS] Unable to connect");
+        lcd.setCursor(0, 0);
+        lcd.print("HTTP connect err");
+        delay(3000); // 3 seonds
     }
 
     Serial.println("[Playlist] Read backup file");
