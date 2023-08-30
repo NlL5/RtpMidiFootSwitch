@@ -6,12 +6,14 @@ extern LiquidCrystal lcd;
 void setup_display();
 void setup_buttons();
 void setup_wifi();
-void download_playlist();
+void setup_playlist();
 void setup_rtp();
+void setup_web();
 void loop_display();
 void loop_buttons();
 void loop_wifi();
 void loop_rtp();
+void loop_web();
 
 void setup()
 {
@@ -21,8 +23,9 @@ void setup()
   setup_display();
   setup_buttons();
   setup_wifi();
-  download_playlist();
+  setup_playlist();
   setup_rtp();
+  setup_web();
 }
 
 void loop()
@@ -31,4 +34,5 @@ void loop()
   loop_buttons();
   loop_wifi();
   loop_rtp();
+  loop_web();
 }

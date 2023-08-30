@@ -2,8 +2,7 @@
 #include "LittleFS.h"
 #include "ESP8266HTTPClient.h"
 #include "WiFiClientSecure.h"
-#define SPIFFS LittleFS
-#define PLAYLIST_PATH "/playlist.csv"
+#include "paths.hpp"
 
 extern LiquidCrystal lcd;
 
@@ -12,20 +11,21 @@ extern LiquidCrystal lcd;
 char playlist[PLAYLIST_MAX][PLAYLIST_STRING_LENGTH];
 u_int16_t song_id[PLAYLIST_MAX];
 
-const char *host = "https://192.168.178.1:15201/nas/filelink.lua?id=8be6da70eefd36df";
-const uint8_t fingerprint[] = {0x28, 0x31, 0x19, 0x9B, 0xD9, 0x77, 0xD1, 0x1D, 0x92, 0xF9, 0x11, 0xB7, 0x84, 0xA1, 0xD9, 0xFB, 0xC3, 0x6D, 0x38, 0xB1};
+//const char *host = "https://192.168.178.1:15201/nas/filelink.lua?id=8be6da70eefd36df";
+//const uint8_t fingerprint[] = {0x28, 0x31, 0x19, 0x9B, 0xD9, 0x77, 0xD1, 0x1D, 0x92, 0xF9, 0x11, 0xB7, 0x84, 0xA1, 0xD9, 0xFB, 0xC3, 0x6D, 0x38, 0xB1};
 
-void download_playlist()
+void download_playlist(char* host, u_int8_t* fingerprint)
 {
-    lcd.setCursor(0, 0);
-    lcd.print("Wifi! Data?     ");
-
-    // Read backup file
-    LittleFS.begin();
-
     // Get file from server
     std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
-    client->setFingerprint(fingerprint);
+
+    if (fingerprint[0] == 0 && fingerprint[1] == 0) { // If the first two values are empty
+        Serial.println("[HTTPS] Insecure request...");
+        client->setInsecure();
+    } else {
+        Serial.printf("[HTTPS] Using fingerprint %02x:%02x:%02x:%02x:...\n", fingerprint[0], fingerprint[1], fingerprint[2], fingerprint[3]);
+        client->setFingerprint(fingerprint);
+    }
 
     HTTPClient https;
 
@@ -82,19 +82,52 @@ void download_playlist()
         lcd.print("HTTP connect err");
         delay(3000); // 3 seonds
     }
+}
 
+void setup_playlist()
+{
+    lcd.setCursor(0, 0);
+    lcd.print("Wifi! Data?     ");
+
+    // Read backup file
+    LittleFS.begin();
+
+    // Try to download the playlist (the method will update the playlist file)
+    File file = LittleFS.open(PLAYLIST_URL_PATH, "r");
+    char host[301] = "";
+    file.readBytes(host, 300);
+    file.close();
+
+    file = LittleFS.open(PLAYLIST_URL_FINGERPRINT_PATH, "r");
+    u_int8_t fingerprint[20] = {};
+    for (u_int8_t i = 0; file.available() && i < 20;)
+    {
+        char tmp[5] = "0x";
+        file.readBytesUntil(':', tmp+2, 2);
+        if (tmp[2] != 0) {
+            fingerprint[i++] = strtol(tmp, nullptr, 16);
+        }
+    }
+    file.close();
+
+    if (strlen(host) > 0) {
+        Serial.printf("[Playlist] Download from host %s\n", host);
+        download_playlist(host, (u_int8_t*)fingerprint);
+    }
+
+    // Now read playlist file
     Serial.println("[Playlist] Read backup file");
-    // Now read playlist into array
-    File file = LittleFS.open(PLAYLIST_PATH, "r");
+    // Read playlist into array
+    file = LittleFS.open(PLAYLIST_PATH, "r");
     for (int i = 0; file.available() && i < PLAYLIST_MAX; i++)
     {
         // Read the id
-        char id_buffer[4];
+        char id_buffer[4] = "";
         file.readBytesUntil(',', id_buffer, 4);
         song_id[i] = (u_int16_t)atoi(id_buffer);
 
         // read the song name
-        char name_buffer[40];
+        char name_buffer[40] = "";
         file.readBytesUntil('\n', name_buffer, 40);
 
         // Copy to playlist array and end the string with null terminator
@@ -109,7 +142,8 @@ void download_playlist()
     lcd.print("Data! Rtp?     ");
 
     lcd.setCursor(0, 1);
-    lcd.print("  ");
+    lcd.print("                ");
+    lcd.setCursor(2, 1);
     lcd.print(playlist[0]);
 }
 

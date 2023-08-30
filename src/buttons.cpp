@@ -54,8 +54,9 @@ void loop_buttons()
     }
 
     // entprellen 100ms
-    if (left_pressed && millis() > left_pressed + 100)
+    if (left_pressed && millis() > left_pressed + 200)
     {
+        Serial.println("[Buttons] Left button entprellt");
         left_pressed = 0;
 
         if (!ctrl_pressed)
@@ -68,8 +69,9 @@ void loop_buttons()
             rtp_send_prev();
         }
     }
-    if (right_pressed && millis() > right_pressed + 100)
+    if (right_pressed && millis() > right_pressed + 200)
     {
+        Serial.println("[Buttons] Right button entprellt");
         right_pressed = 0;
 
         if (!ctrl_pressed)
