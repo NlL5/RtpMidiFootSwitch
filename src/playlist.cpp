@@ -122,12 +122,12 @@ void setup_playlist()
     for (int i = 0; file.available() && i < PLAYLIST_MAX; i++)
     {
         // Read the id
-        char id_buffer[4] = "";
-        file.readBytesUntil(',', id_buffer, 4);
+        char id_buffer[7] = "";
+        file.readBytesUntil(',', id_buffer, 6);
         song_id[i] = (u_int16_t)atoi(id_buffer);
 
         // read the song name
-        char name_buffer[40] = "";
+        char name_buffer[41] = "";
         file.readBytesUntil('\n', name_buffer, 40);
 
         // Copy to playlist array and end the string with null terminator
