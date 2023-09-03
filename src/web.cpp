@@ -1,17 +1,17 @@
 
 #include "LiquidCrystal.h"
-#include "ESP8266WebServer.h"
 #include "LittleFS.h"
 #include "paths.hpp"
+#include "AsyncElegantOTA.h"
 
 extern LiquidCrystal lcd;
 
-ESP8266WebServer server(80);
+AsyncWebServer server(80);
 
 void setup_playlist();
-void handleGet();
-void handlePost();
-void handleNotFound();
+void handleGet(AsyncWebServerRequest *request);
+void handlePost(AsyncWebServerRequest *request);
+void handleNotFound(AsyncWebServerRequest *request);
 
 void setup_web()
 {
@@ -22,6 +22,9 @@ void setup_web()
     server.on("/save", HTTP_POST, handlePost);
     server.onNotFound(handleNotFound);
 
+    // Start ElegantOTA
+    AsyncElegantOTA.begin(&server, "MidiSongDisplay", "93485oisufdg");
+
     // Actually start the server
     server.begin();
 
@@ -30,10 +33,9 @@ void setup_web()
 
 void loop_web()
 {
-    server.handleClient(); // Listen for HTTP requests from clients
 }
 
-void handleGet()
+void handleGet(AsyncWebServerRequest *request)
 {
     Serial.println("[HTTP server] GET");
 
@@ -54,10 +56,10 @@ void handleGet()
                 "<input type=\"submit\" value=\"Save\">"
                 "</form>", host, fingerprint);
 
-    server.send(200, "text/html", buffer);
+    request->send(200, "text/html", buffer);
 }
 
-void handlePost()
+void handlePost(AsyncWebServerRequest *request)
 {
     Serial.println("[HTTP server] POST");
 
@@ -73,7 +75,7 @@ void handlePost()
     file.close();
 
     File write;
-    String new_host = server.arg("url");
+    String new_host = request->arg("url");
     if (strcmp(old_host, new_host.c_str()) != 0) {
         write = LittleFS.open(PLAYLIST_URL_PATH, "w");
         write.print(new_host);
@@ -82,7 +84,7 @@ void handlePost()
         Serial.println("[HTTP server] Saved new playlist URL.");
     }
 
-    String new_fingerprint = server.arg("fingerprint");
+    String new_fingerprint = request->arg("fingerprint");
     if (strcmp(old_fingerprint, new_fingerprint.c_str()) != 0) {
         write = LittleFS.open(PLAYLIST_URL_FINGERPRINT_PATH, "w");
         write.print(new_fingerprint);
@@ -91,16 +93,17 @@ void handlePost()
         Serial.println("[HTTP server] Saved new fingerprint.");
     }
 
-    server.sendHeader("Location", "/");
-    server.send(303); // Redirect to start page
+    AsyncWebServerResponse *response = request->beginResponse(303); // Redirect to start page
+    response->addHeader("Location", "/");
+    request->send(response);
 
     // Re-read playlist
     setup_playlist();
 }
 
-void handleNotFound()
+void handleNotFound(AsyncWebServerRequest *request)
 {
     Serial.println("[HTTP server] Not found");
 
-    server.send(404, "text/plain", "404: Not found");
+    request->send(404, "text/plain", "404: Not found");
 }
