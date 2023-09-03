@@ -12,6 +12,8 @@ extern char playlist[PLAYLIST_MAX][PLAYLIST_STRING_LENGTH];
 extern u_int16_t song_id[PLAYLIST_MAX];
 
 void playlist_goto_id(u_int16_t id);
+void playlist_goto_index(u_int16_t index);
+void display_connect_info();
 
 unsigned long t0 = millis();
 int8_t isConnected = 0;
@@ -33,23 +35,43 @@ void setup_rtp()
     AppleMIDI.setHandleConnected([](const APPLEMIDI_NAMESPACE::ssrc_t & ssrc, const char* name) {
         isConnected++;
         AM_DBG(F("Connected to session"), ssrc, name);
-        playlist_goto_id(1);
+        playlist_goto_index(0);
     });
     AppleMIDI.setHandleDisconnected([](const APPLEMIDI_NAMESPACE::ssrc_t & ssrc) {
         isConnected--;
         AM_DBG(F("Disconnected"), ssrc);
-        lcd.setCursor(0, 1);
-        lcd.print("LOST RTP! Waiting");
+        if (isConnected == 0) {
+            display_connect_info();
+        }
     });
     
     // Note handlers
+    MIDI.setHandleControlChange([](byte channel, byte number, byte value) {
+        AM_DBG(F("CC"), value);
+        if (channel == 1) {
+            playlist_goto_id((u_int16_t)number*100 + (u_int16_t)value);
+        }
+    });
     MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
         AM_DBG(F("NoteOn"), note);
-        playlist_goto_id((u_int16_t)note*100 + (u_int16_t)velocity);
     });
     MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
         AM_DBG(F("NoteOff"), note);
     });
+
+    display_connect_info();
+}
+
+void display_connect_info()
+{
+    lcd.setCursor(0, 0);
+    lcd.print("Rtp? Port:      ");
+    lcd.setCursor(11, 0);
+    lcd.print(AppleMIDI.getPort());
+
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+    lcd.print("    ");
 }
 
 void loop_rtp()
@@ -62,7 +84,7 @@ void rtp_send_play_stop()
 {
     byte note = 0;
     byte velocity = 127;
-    byte channel = 1;
+    byte channel = 2;
 
     MIDI.sendNoteOn(note, velocity, channel);
     MIDI.sendNoteOff(note, velocity, channel);
@@ -72,7 +94,7 @@ void rtp_send_next()
 {
     byte note = 1;
     byte velocity = 127;
-    byte channel = 1;
+    byte channel = 2;
 
     MIDI.sendNoteOn(note, velocity, channel);
     MIDI.sendNoteOff(note, velocity, channel);
@@ -82,7 +104,7 @@ void rtp_send_prev()
 {
     byte note = 2;
     byte velocity = 127;
-    byte channel = 1;
+    byte channel = 2;
 
     MIDI.sendNoteOn(note, velocity, channel);
     MIDI.sendNoteOff(note, velocity, channel);

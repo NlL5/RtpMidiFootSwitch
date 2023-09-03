@@ -2,7 +2,7 @@
 #include "LiquidCrystal.h"
 #include "WiFiManager.h"
 
-#define STANDALONE_SSID "MidiTrigger"
+#define STANDALONE_SSID "MidiSongDisplay"
 #define STANDALONE_PASSWORD "93485oisufdg"
 
 extern LiquidCrystal lcd;

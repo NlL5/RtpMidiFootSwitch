@@ -139,12 +139,7 @@ void setup_playlist()
     file.close();
 
     lcd.setCursor(0, 0);
-    lcd.print("Data! Rtp?     ");
-
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
-    lcd.setCursor(2, 1);
-    lcd.print(playlist[0]);
+    lcd.print("Data! Rtp?      ");
 }
 
 void playlist_display_next_of(u_int16_t index)
