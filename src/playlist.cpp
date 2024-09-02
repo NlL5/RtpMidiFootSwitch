@@ -153,7 +153,7 @@ void playlist_display_next_of(u_int16_t index)
         Serial.printf("[Playlist] Warning: Secondary ignoring index %d\n", index);
     }
 
-    lcd.setCursor(2, 1);
+    lcd.setCursor(8, 1);
     lcd.print(playlist[index]);
 }
 
