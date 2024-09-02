@@ -3,6 +3,7 @@
 #include "WiFiUdp.h"
 #define SerialMon Serial
 #include "AppleMIDI.h"
+#include "ESP8266mDNS.h"
 
 #define PLAYLIST_MAX 60
 #define PLAYLIST_STRING_LENGTH 17
@@ -23,6 +24,12 @@ APPLEMIDI_CREATE_INSTANCE(WiFiUDP, MIDI, "MidiTrigger", DEFAULT_CONTROL_PORT);
 
 void setup_rtp()
 {
+    // Set up mDNS responder:
+    if (!MDNS.begin(AppleMIDI.getName()))
+        AM_DBG(F("Error setting up MDNS responder!"), 0x0032);
+    AM_DBG(F("mDNS responder started ("), AppleMIDI.getName(), ".local)");
+    MDNS.addService("apple-midi", "udp", AppleMIDI.getPort());
+
     AM_DBG(F("OK, now make sure you an rtpMIDI session that is Enabled"));
     AM_DBG(F("Add device named Arduino with Host"), WiFi.localIP(), "Port", AppleMIDI.getPort(), "(Name", AppleMIDI.getName(), ")");
     AM_DBG(F("Select and then press the Connect button"));
@@ -78,6 +85,8 @@ void loop_rtp()
 {
     // Listen to incoming notes
     MIDI.read();
+    // Update mDNS to promote to rtpMidi directories
+    MDNS.update();
 }
 
 void rtp_send_play_stop()
